@@ -14,11 +14,14 @@
         </Grid.RowDefinitions>
         <StackPanel>
             <Label>Interval Seconds</Label>
-            <TextBox Name="txtInterval" Text="1" LostFocus="TxtInterval_OnLostFocus"  FontSize="30"/>
+            <TextBox Name="txtInterval" Text="1" LostFocus="TxtInterval_OnLostFocus" FontSize="30" />
             <Button Name="btnToggle" Width="100" Height="50" Click="Toggle_OnClick">Start</Button>
+            <Label>Countdown</Label>
+            <Label Name="lblCountdown" />
         </StackPanel>
         <StackPanel Orientation="Horizontal" Grid.Row="1" HorizontalAlignment="Right">
             <Button Click="onSave_Click">Save changes</Button>
+
         </StackPanel>
     </Grid>
 </Window>

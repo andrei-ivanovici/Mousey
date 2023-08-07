@@ -23,6 +23,11 @@ namespace WpfApp1
             InitializeComponent();
             _settings = Settings.Load();
             txtInterval.Text = _settings.Interval.ToString();
+            lblCountdown.Content = txtInterval.Text;
+            _mouseService.OnCountdown += span =>
+            {
+                Dispatcher.Invoke(() => { lblCountdown.Content = span.ToString(); });
+            };
         }
 
         private TimeSpan ParseTime()
