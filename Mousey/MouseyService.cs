@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Mousey.Interop;
@@ -10,12 +11,44 @@ public class MouseyService
     private CancellationTokenSource _tcs;
     public bool IsRunning { get; private set; } = false;
 
+    public event Action<TimeSpan> OnCountdown;
 
-    public void Start(TimeSpan inteval)
+
+    private async Task Countdown(TimeSpan interval, CancellationToken token)
     {
-        ;
+        var countdown = interval;
+        OnCountdown?.Invoke(countdown);
+        while (countdown > TimeSpan.Zero)
+        {
+            var initialPosition = GetCurrentPosition();
+            await Task.Delay(1000, token);
+            Debug.WriteLine($"Token {token.IsCancellationRequested}");
+            Debug.WriteLine($"Tick");
+            var newPosition = GetCurrentPosition();
+            countdown = !newPosition.Equals(initialPosition)
+                ? interval
+                : countdown.Subtract(TimeSpan.FromSeconds(1));
+            OnCountdown?.Invoke(countdown);
+            token.ThrowIfCancellationRequested();
+        }
+    }
+
+    private async Task TwitchMouse()
+    {
+        var currentPosition = GetCurrentPosition();
+        var nextPosition = currentPosition with
+        {
+            mX = currentPosition.mX + 10
+        };
+        CursorInterop.SetCursorPosition(nextPosition);
+        await Task.Delay(TimeSpan.FromMilliseconds(100));
+        CursorInterop.SetCursorPosition(currentPosition);
+    }
+
+    public void Start(TimeSpan interval)
+    {
         _tcs = new CancellationTokenSource();
-        if (inteval.TotalMilliseconds <= 0)
+        if (interval.TotalMilliseconds <= 0)
         {
             throw new InvalidOperationException("interval is invalid");
         }
@@ -23,26 +56,20 @@ public class MouseyService
         IsRunning = true;
         Task.Run(async () =>
         {
-            while (!_tcs.IsCancellationRequested)
+            try
             {
-                var initialPosition = GetCurrentPosition();
-                await Task.Delay(inteval, _tcs.Token);
-                var currentPosition = GetCurrentPosition();
-                if (!initialPosition.Equals(currentPosition))
+                while (!_tcs.IsCancellationRequested)
                 {
-                    continue;
+                    await Countdown(interval, _tcs.Token);
+                    await TwitchMouse();
                 }
-
-                var nextPosition = currentPosition with
-                {
-                    mX = currentPosition.mX + 10
-                };
-                CursorInterop.SetCursorPosition(nextPosition);
-                await Task.Delay(TimeSpan.FromMilliseconds(100));
-                CursorInterop.SetCursorPosition(currentPosition);
             }
-
-            IsRunning = false;
+            catch (OperationCanceledException ex)
+            {
+                OnCountdown?.Invoke(interval);
+                Debug.WriteLine($"Op Canceled {ex.Message}");
+                IsRunning = false;
+            }
         });
     }
 
@@ -56,5 +83,6 @@ public class MouseyService
     public void Stop()
     {
         _tcs.Cancel();
+        IsRunning = false;
     }
 }
